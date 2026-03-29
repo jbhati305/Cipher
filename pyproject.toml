@@ -1,0 +1,49 @@
+[project]
+name = "cipher"
+version = "0.1.0"
+description = "Memory-first personal assistant backend built with FastAPI and Neo4j."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "apscheduler>=3.11.1",
+    "fastapi>=0.116.1",
+    "httpx>=0.28.1",
+    "neo4j>=5.28.2",
+    "pydantic-settings>=2.11.0",
+    "python-dateutil>=2.9.0.post0",
+    "python-dotenv>=1.1.1",
+    "uvicorn[standard]>=0.36.0",
+]
+
+[project.scripts]
+cipher-api = "apps.api.main:run"
+cipher-apply-schema = "scripts.apply_neo4j_schema:main"
+cipher-neo4j-smoke = "scripts.neo4j_smoke_test:main"
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "ruff>=0.13.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["apps", "core", "database", "scripts", "services"]
+
+[tool.uv]
+package = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B"]
+ignore = ["B008"]
