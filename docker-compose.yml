@@ -1,0 +1,42 @@
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: cipher-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-cipherpassword}
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "cypher-shell -u ${NEO4J_USERNAME:-neo4j} -p ${NEO4J_PASSWORD:-cipherpassword} 'RETURN 1;'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cipher-api
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NEO4J_URI: neo4j://neo4j:7687
+      ALLOW_DEGRADED_STARTUP: "false"
+    ports:
+      - "8181:8181"
+    restart: unless-stopped
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
