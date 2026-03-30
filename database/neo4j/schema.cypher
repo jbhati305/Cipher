@@ -22,6 +22,22 @@ CREATE INDEX cipher_reminder_status IF NOT EXISTS
 FOR (n:Reminder)
 ON (n.status);
 
+CREATE INDEX cipher_reminder_last_triggered_at IF NOT EXISTS
+FOR (n:Reminder)
+ON (n.last_triggered_at);
+
+CREATE INDEX cipher_event_start_time IF NOT EXISTS
+FOR (n:Event)
+ON (n.start_time);
+
+CREATE INDEX cipher_event_end_time IF NOT EXISTS
+FOR (n:Event)
+ON (n.end_time);
+
+CREATE INDEX cipher_event_title IF NOT EXISTS
+FOR (n:Event)
+ON (n.title);
+
 CREATE INDEX cipher_note_title IF NOT EXISTS
 FOR (n:Note)
 ON (n.title);

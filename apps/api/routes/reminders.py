@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 
 from apps.api.dependencies import get_reminder_service
-from core.models.entities import ReminderCreate, ReminderRead
+from core.models.entities import ReminderCreate, ReminderRead, ReminderSnooze, ReminderUpdate
 from services.reminders.service import ReminderService
 
 router = APIRouter(prefix="/reminders", tags=["reminders"])
@@ -24,3 +24,29 @@ def list_reminders(
     service: ReminderService = Depends(get_reminder_service),
 ) -> list[ReminderRead]:
     return service.list_reminders(start=start, end=end)
+
+
+@router.patch("/{reminder_id}", response_model=ReminderRead)
+def update_reminder(
+    reminder_id: str,
+    payload: ReminderUpdate,
+    service: ReminderService = Depends(get_reminder_service),
+) -> ReminderRead:
+    return service.update_reminder(reminder_id, payload)
+
+
+@router.post("/{reminder_id}/snooze", response_model=ReminderRead)
+def snooze_reminder(
+    reminder_id: str,
+    payload: ReminderSnooze,
+    service: ReminderService = Depends(get_reminder_service),
+) -> ReminderRead:
+    return service.snooze_reminder(reminder_id, payload)
+
+
+@router.post("/{reminder_id}/dismiss", response_model=ReminderRead)
+def dismiss_reminder(
+    reminder_id: str,
+    service: ReminderService = Depends(get_reminder_service),
+) -> ReminderRead:
+    return service.dismiss_reminder(reminder_id)

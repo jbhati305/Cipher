@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
-from apps.api.routes import assistant, health, memory, projects, reminders, tasks
+from apps.api.routes import assistant, calendar, health, memory, projects, reminders, tasks
 from core.config import get_settings
 from core.utils.logging import configure_logging
 from database.neo4j.client import Neo4jGraphClient
@@ -57,7 +58,18 @@ def create_app() -> FastAPI:
         )
         return response
 
+    @app.exception_handler(Exception)
+    async def handle_unexpected_exception(request: Request, exc: Exception) -> JSONResponse:
+        logger.exception(
+            "Unhandled application error on %s %s",
+            request.method,
+            request.url.path,
+            exc_info=exc,
+        )
+        return JSONResponse(status_code=500, content={"detail": "Internal server error."})
+
     app.include_router(health.router)
+    app.include_router(calendar.router)
     app.include_router(projects.router)
     app.include_router(tasks.router)
     app.include_router(reminders.router)
@@ -70,4 +82,4 @@ app = create_app()
 
 
 def run() -> None:
-    uvicorn.run("apps.api.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("apps.api.main:app", host="127.0.0.1", port=8181, reload=True)

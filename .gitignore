@@ -9,6 +9,9 @@
 .env
 .env.*
 !.env.example
+.secrets/
+credentials.json
+google-client-secret.json
 
 # Python caches and virtualenvs
 .venv/

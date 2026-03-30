@@ -6,25 +6,49 @@ CREATE CONSTRAINT cipher_person_id IF NOT EXISTS
 FOR (n:Person)
 REQUIRE n.id IS UNIQUE;
 
+CREATE CONSTRAINT cipher_person_code IF NOT EXISTS
+FOR (n:Person)
+REQUIRE n.code IS UNIQUE;
+
 CREATE CONSTRAINT cipher_project_id IF NOT EXISTS
 FOR (n:Project)
 REQUIRE n.id IS UNIQUE;
+
+CREATE CONSTRAINT cipher_project_code IF NOT EXISTS
+FOR (n:Project)
+REQUIRE n.code IS UNIQUE;
 
 CREATE CONSTRAINT cipher_task_id IF NOT EXISTS
 FOR (n:Task)
 REQUIRE n.id IS UNIQUE;
 
+CREATE CONSTRAINT cipher_task_code IF NOT EXISTS
+FOR (n:Task)
+REQUIRE n.code IS UNIQUE;
+
 CREATE CONSTRAINT cipher_reminder_id IF NOT EXISTS
 FOR (n:Reminder)
 REQUIRE n.id IS UNIQUE;
+
+CREATE CONSTRAINT cipher_reminder_code IF NOT EXISTS
+FOR (n:Reminder)
+REQUIRE n.code IS UNIQUE;
 
 CREATE CONSTRAINT cipher_event_id IF NOT EXISTS
 FOR (n:Event)
 REQUIRE n.id IS UNIQUE;
 
+CREATE CONSTRAINT cipher_event_code IF NOT EXISTS
+FOR (n:Event)
+REQUIRE n.code IS UNIQUE;
+
 CREATE CONSTRAINT cipher_note_id IF NOT EXISTS
 FOR (n:Note)
 REQUIRE n.id IS UNIQUE;
+
+CREATE CONSTRAINT cipher_note_code IF NOT EXISTS
+FOR (n:Note)
+REQUIRE n.code IS UNIQUE;
 
 CREATE CONSTRAINT cipher_goal_id IF NOT EXISTS
 FOR (n:Goal)

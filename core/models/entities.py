@@ -2,7 +2,9 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from core.utils.recurrence import is_supported_recurrence_rule
 
 
 class EntityType(StrEnum):
@@ -71,6 +73,7 @@ class RelatedEntity(ModelBase):
 
 class TimestampedReadModel(ModelBase):
     id: str
+    code: str
     created_at: datetime
     updated_at: datetime
 
@@ -112,6 +115,24 @@ class TaskCreate(ModelBase):
     related_entity_ids: list[str] = Field(default_factory=list)
 
 
+class TaskUpdate(ModelBase):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+    status: TaskStatus | None = None
+    priority: TaskPriority | None = None
+    deadline: datetime | None = None
+    estimated_effort: str | None = None
+    project_id: str | None = None
+    related_entity_ids: list[str] | None = None
+
+    @model_validator(mode="after")
+    def validate_required_fields_when_present(self) -> "TaskUpdate":
+        for field_name in ("title", "status", "priority"):
+            if field_name in self.model_fields_set and getattr(self, field_name) is None:
+                raise ValueError(f"{field_name} cannot be null when provided.")
+        return self
+
+
 class TaskRead(TimestampedReadModel):
     title: str
     description: str | None = None
@@ -131,6 +152,36 @@ class ReminderCreate(ModelBase):
     channel: ReminderChannel = ReminderChannel.IN_APP
     related_entity_ids: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_recurrence(self) -> "ReminderCreate":
+        if not is_supported_recurrence_rule(self.recurrence_rule):
+            raise ValueError("Unsupported recurrence_rule. Use daily, weekly, monthly, or RRULE.")
+        return self
+
+
+class ReminderUpdate(ModelBase):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    trigger_time: datetime | None = None
+    recurrence_rule: str | None = None
+    status: ReminderStatus | None = None
+    channel: ReminderChannel | None = None
+    related_entity_ids: list[str] | None = None
+
+    @model_validator(mode="after")
+    def validate_required_fields_when_present(self) -> "ReminderUpdate":
+        for field_name in ("title", "trigger_time", "status", "channel"):
+            if field_name in self.model_fields_set and getattr(self, field_name) is None:
+                raise ValueError(f"{field_name} cannot be null when provided.")
+        if "recurrence_rule" in self.model_fields_set and not is_supported_recurrence_rule(
+            self.recurrence_rule
+        ):
+            raise ValueError("Unsupported recurrence_rule. Use daily, weekly, monthly, or RRULE.")
+        return self
+
+
+class ReminderSnooze(ModelBase):
+    until: datetime
+
 
 class ReminderRead(TimestampedReadModel):
     title: str
@@ -138,7 +189,60 @@ class ReminderRead(TimestampedReadModel):
     recurrence_rule: str | None = None
     status: ReminderStatus
     channel: ReminderChannel
+    last_triggered_at: datetime | None = None
+    trigger_count: int = 0
     related_entity_ids: list[str] = Field(default_factory=list)
+
+
+class EventCreate(ModelBase):
+    title: str = Field(min_length=1, max_length=200)
+    start_time: datetime
+    end_time: datetime
+    location: str | None = None
+    description: str | None = None
+    related_entity_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_time_range(self) -> "EventCreate":
+        if self.end_time <= self.start_time:
+            raise ValueError("end_time must be after start_time.")
+        return self
+
+
+class EventUpdate(ModelBase):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    location: str | None = None
+    description: str | None = None
+    related_entity_ids: list[str] | None = None
+
+    @model_validator(mode="after")
+    def validate_time_range(self) -> "EventUpdate":
+        if (
+            self.start_time is not None
+            and self.end_time is not None
+            and self.end_time <= self.start_time
+        ):
+            raise ValueError("end_time must be after start_time.")
+        if "title" in self.model_fields_set and self.title is None:
+            raise ValueError("title cannot be null when provided.")
+        return self
+
+
+class EventRead(TimestampedReadModel):
+    title: str
+    start_time: datetime
+    end_time: datetime
+    location: str | None = None
+    description: str | None = None
+    related_entity_ids: list[str] = Field(default_factory=list)
+
+
+class FreeSlotRead(ModelBase):
+    start_time: datetime
+    end_time: datetime
+    duration_minutes: int
 
 
 class NoteCreate(ModelBase):

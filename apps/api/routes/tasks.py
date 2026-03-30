@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from apps.api.dependencies import get_task_service
-from core.models.entities import TaskCreate, TaskRead, TaskStatus
+from core.models.entities import TaskCreate, TaskRead, TaskStatus, TaskUpdate
 from services.tasks.service import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -29,3 +29,28 @@ def list_overdue_tasks(
     service: TaskService = Depends(get_task_service),
 ) -> list[TaskRead]:
     return service.list_overdue_tasks()
+
+
+@router.get("/by-project/{project_id}", response_model=list[TaskRead])
+def list_tasks_by_project(
+    project_id: str,
+    service: TaskService = Depends(get_task_service),
+) -> list[TaskRead]:
+    return service.list_tasks(project_id=project_id)
+
+
+@router.patch("/{task_id}", response_model=TaskRead)
+def update_task(
+    task_id: str,
+    payload: TaskUpdate,
+    service: TaskService = Depends(get_task_service),
+) -> TaskRead:
+    return service.update_task(task_id, payload)
+
+
+@router.post("/{task_id}/complete", response_model=TaskRead)
+def complete_task(
+    task_id: str,
+    service: TaskService = Depends(get_task_service),
+) -> TaskRead:
+    return service.complete_task(task_id)
