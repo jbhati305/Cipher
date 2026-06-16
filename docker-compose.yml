@@ -1,42 +1,85 @@
 services:
-  neo4j:
-    image: neo4j:5-community
-    container_name: cipher-neo4j
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    environment:
-      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-cipherpassword}
-    volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "cypher-shell -u ${NEO4J_USERNAME:-neo4j} -p ${NEO4J_PASSWORD:-cipherpassword} 'RETURN 1;'",
-        ]
-      interval: 10s
-      timeout: 10s
-      retries: 12
-
-  api:
+  cipher-api:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: cipher-api
-    depends_on:
-      neo4j:
-        condition: service_healthy
     env_file:
       - .env
     environment:
-      NEO4J_URI: neo4j://neo4j:7687
-      ALLOW_DEGRADED_STARTUP: "false"
+      CIPHER_API_HOST: 0.0.0.0
+      CIPHER_DATA_DIR: /data
+      CIPHER_EXPORTS_DIR: /data/exports
+      CIPHER_SQLITE_PATH: /data/cipher.sqlite3
+      MEMOS_BASE_URL: http://memos:8000
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
     ports:
       - "8181:8181"
+    volumes:
+      - cipher_data:/data
+      - ./.secrets:/app/.secrets
+    depends_on:
+      - qdrant
+    restart: unless-stopped
+
+  cipher-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cipher-worker
+    command: ["uv", "run", "cipher-worker"]
+    env_file:
+      - .env
+    environment:
+      CIPHER_DATA_DIR: /data
+      CIPHER_EXPORTS_DIR: /data/exports
+      CIPHER_SQLITE_PATH: /data/cipher.sqlite3
+      MEMOS_BASE_URL: http://memos:8000
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - cipher_data:/data
+    depends_on:
+      - cipher-api
+      - qdrant
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.5
+    container_name: cipher-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  memos:
+    image: ghcr.io/memtensor/memos:latest
+    container_name: cipher-memos
+    profiles: ["memos"]
+    environment:
+      QDRANT_URL: http://qdrant:6333
+    ports:
+      - "8000:8000"
+    volumes:
+      - memos_data:/data
+    depends_on:
+      - qdrant
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cipher-ollama
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
     restart: unless-stopped
 
 volumes:
-  neo4j_data:
-  neo4j_logs:
+  cipher_data:
+  qdrant_data:
+  memos_data:
+  ollama_data:

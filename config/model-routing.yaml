@@ -1,0 +1,61 @@
+default_provider: nvidia_nim
+privacy_default: private
+providers:
+  nvidia_nim:
+    type: openai_compatible
+    enabled_env: NVIDIA_API_KEY
+    base_url_env: NVIDIA_BASE_URL
+    models:
+      chat: nvidia/nemotron-3-ultra-550b-a55b
+      coding: nvidia/nemotron-3-ultra-550b-a55b
+      research: nvidia/nemotron-3-ultra-550b-a55b
+      reflection: nvidia/nemotron-3-ultra-550b-a55b
+      summarization: nvidia/nemotron-3-ultra-550b-a55b
+      extraction: nvidia/nemotron-3-ultra-550b-a55b
+  ollama:
+    type: ollama
+    base_url_env: OLLAMA_BASE_URL
+    models:
+      chat: llama3.1:8b
+      coding: qwen2.5-coder:7b
+      research: llama3.1:8b
+      reflection: llama3.1:8b
+      summarization: llama3.1:8b
+      extraction: llama3.1:8b
+  openai:
+    type: openai
+    enabled_env: OPENAI_API_KEY
+  anthropic:
+    type: anthropic
+    enabled_env: ANTHROPIC_API_KEY
+  gemini:
+    type: gemini
+    enabled_env: GEMINI_API_KEY
+  openrouter:
+    type: openrouter
+    enabled_env: OPENROUTER_API_KEY
+task_classes:
+  chat:
+    provider_order: [nvidia_nim, ollama, openrouter, openai, anthropic, gemini]
+    allow_api_fallback: true
+    share_private_context: true
+  coding:
+    provider_order: [nvidia_nim, ollama, openrouter, anthropic, openai, gemini]
+    allow_api_fallback: true
+    share_private_context: false
+  research:
+    provider_order: [nvidia_nim, ollama, openrouter, openai, gemini, anthropic]
+    allow_api_fallback: true
+    share_private_context: false
+  reflection:
+    provider_order: [nvidia_nim, ollama]
+    allow_api_fallback: true
+    share_private_context: true
+  summarization:
+    provider_order: [nvidia_nim, ollama, openrouter, openai]
+    allow_api_fallback: true
+    share_private_context: true
+  extraction:
+    provider_order: [nvidia_nim, ollama]
+    allow_api_fallback: true
+    share_private_context: true

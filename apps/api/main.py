@@ -6,10 +6,24 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from apps.api.routes import assistant, calendar, health, memory, projects, reminders, tasks
+from apps.api.routes import (
+    admin,
+    calendar,
+    dashboard,
+    health,
+    memory,
+    notion,
+    projects,
+    reminders,
+    tasks,
+    voice,
+)
 from core.config import get_settings
 from core.utils.logging import configure_logging
-from database.neo4j.client import Neo4jGraphClient
+from services.llm.local_router import LocalFirstLLMRouter
+from services.llm.routing import ModelRoutingPolicy
+from services.memory.memos_client import MemOSClient
+from storage import SQLiteRepository
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +33,19 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    client = Neo4jGraphClient(settings)
-    app.state.settings = settings
-    app.state.neo4j_client = client
+    settings.resolved_data_dir.mkdir(parents=True, exist_ok=True)
+    repository = SQLiteRepository(settings.resolved_sqlite_path)
+    memos_client = MemOSClient(settings)
+    model_policy = ModelRoutingPolicy(settings)
+    llm_router = LocalFirstLLMRouter(settings, model_policy)
 
-    try:
-        client.start()
-    except Exception:
-        logger.exception("Neo4j startup failed.")
-        if not settings.allow_degraded_startup:
-            raise
+    app.state.settings = settings
+    app.state.repository = repository
+    app.state.memos_client = memos_client
+    app.state.model_policy = model_policy
+    app.state.llm_router = llm_router
 
     yield
-
-    client.close()
 
 
 def create_app() -> FastAPI:
@@ -69,12 +82,15 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=500, content={"detail": "Internal server error."})
 
     app.include_router(health.router)
-    app.include_router(calendar.router)
-    app.include_router(projects.router)
-    app.include_router(tasks.router)
-    app.include_router(reminders.router)
-    app.include_router(memory.router)
-    app.include_router(assistant.router)
+    app.include_router(dashboard.router)
+    app.include_router(calendar.router, prefix="/api")
+    app.include_router(projects.router, prefix="/api")
+    app.include_router(tasks.router, prefix="/api")
+    app.include_router(reminders.router, prefix="/api")
+    app.include_router(memory.router, prefix="/api")
+    app.include_router(notion.router, prefix="/api")
+    app.include_router(voice.router, prefix="/api")
+    app.include_router(admin.router, prefix="/api")
     return app
 
 
@@ -82,4 +98,10 @@ app = create_app()
 
 
 def run() -> None:
-    uvicorn.run("apps.api.main:app", host="127.0.0.1", port=8181, reload=True)
+    settings = get_settings()
+    uvicorn.run(
+        "apps.api.main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.environment == "development",
+    )

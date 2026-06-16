@@ -24,6 +24,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.uv-cache/
+.uv-python/
 
 # Test and coverage output
 .coverage
@@ -32,3 +34,6 @@ htmlcov/
 
 # Runtime output
 *.log
+data/
+*.sqlite3
+*.sqlite3-*

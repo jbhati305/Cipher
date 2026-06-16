@@ -6,12 +6,17 @@ router = APIRouter(tags=["system"])
 @router.get("/health")
 def healthcheck(request: Request) -> dict:
     settings = request.app.state.settings
-    client = request.app.state.neo4j_client
+    repository = request.app.state.repository
     return {
         "status": "ok",
         "app": settings.app_name,
         "version": settings.app_version,
-        "neo4j": client.status(),
+        "storage": repository.health(),
+        "memos": {"configured": bool(settings.memos_base_url), "base_url": settings.memos_base_url},
+        "llm": {
+            "provider": settings.llm_provider,
+            "ollama_base_url": settings.ollama_base_url,
+        },
     }
 
 

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 
-from apps.api.dependencies import get_reminder_service
+from apps.api.dependencies import get_reminder_service, require_hermes
 from core.models.entities import ReminderCreate, ReminderRead, ReminderSnooze, ReminderUpdate
 from services.reminders.service import ReminderService
 
@@ -13,6 +13,7 @@ router = APIRouter(prefix="/reminders", tags=["reminders"])
 def create_reminder(
     payload: ReminderCreate,
     service: ReminderService = Depends(get_reminder_service),
+    _: None = Depends(require_hermes),
 ) -> ReminderRead:
     return service.create_reminder(payload)
 
@@ -22,6 +23,7 @@ def list_reminders(
     start: datetime | None = Query(default=None),
     end: datetime | None = Query(default=None),
     service: ReminderService = Depends(get_reminder_service),
+    _: None = Depends(require_hermes),
 ) -> list[ReminderRead]:
     return service.list_reminders(start=start, end=end)
 
@@ -31,6 +33,7 @@ def update_reminder(
     reminder_id: str,
     payload: ReminderUpdate,
     service: ReminderService = Depends(get_reminder_service),
+    _: None = Depends(require_hermes),
 ) -> ReminderRead:
     return service.update_reminder(reminder_id, payload)
 
@@ -40,6 +43,7 @@ def snooze_reminder(
     reminder_id: str,
     payload: ReminderSnooze,
     service: ReminderService = Depends(get_reminder_service),
+    _: None = Depends(require_hermes),
 ) -> ReminderRead:
     return service.snooze_reminder(reminder_id, payload)
 
@@ -48,5 +52,6 @@ def snooze_reminder(
 def dismiss_reminder(
     reminder_id: str,
     service: ReminderService = Depends(get_reminder_service),
+    _: None = Depends(require_hermes),
 ) -> ReminderRead:
     return service.dismiss_reminder(reminder_id)

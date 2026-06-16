@@ -257,3 +257,63 @@ class NoteRead(TimestampedReadModel):
     content: str
     source: str | None = None
     related_entity_ids: list[str] = Field(default_factory=list)
+
+
+class MemoryWrite(ModelBase):
+    content: str = Field(min_length=1)
+    kind: str = Field(default="note", min_length=1, max_length=80)
+    source: str = Field(default="cipher", min_length=1, max_length=80)
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MemoryRecord(ModelBase):
+    id: str
+    content: str
+    kind: str
+    source: str
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+
+
+class MemorySearchResult(ModelBase):
+    id: str | None = None
+    content: str
+    score: float | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class PaperRead(ModelBase):
+    id: str
+    title: str
+    authors: str | None = None
+    status: str | None = None
+    url: str | None = None
+    notion_page_id: str
+    updated_at: datetime | None = None
+
+
+class VoiceMessage(ModelBase):
+    session_id: str | None = None
+    utterance: str = Field(min_length=1)
+    source: str = Field(default="alexa")
+    allow_api_fallback: bool = False
+
+
+class VoiceReply(ModelBase):
+    session_id: str
+    reply: str
+    stored_summary: str | None = None
+    used_async_processing: bool = False
+
+
+class ReflectionRequest(ModelBase):
+    prompt: str | None = None
+    include_today: bool = True
+
+
+class ReflectionSummary(ModelBase):
+    id: str
+    summary: str
+    created_at: datetime

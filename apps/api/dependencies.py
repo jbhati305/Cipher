@@ -1,96 +1,135 @@
 from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.config import Settings
-from core.repositories.graph_repository import Neo4jGraphRepository
-from database.neo4j.client import Neo4jGraphClient
-from services.assistant.context import AssistantContextService
-from services.assistant.parser import AssistantParserService
-from services.assistant.service import AssistantService
+from exports import ExportService
 from services.calendar.provider import GoogleCalendarProvider
 from services.calendar.service import CalendarService
-from services.llm import build_llm_provider
+from services.llm.local_router import LocalFirstLLMRouter
+from services.llm.routing import ModelRoutingPolicy
+from services.memory.memos_client import MemOSClient
 from services.memory.service import MemoryService
+from services.notion import NotionPaperService
 from services.projects.service import ProjectService
 from services.reminders.service import ReminderService
 from services.tasks.service import TaskService
+from services.voice import VoiceBridgeService
+from storage import SQLiteRepository
+
+security = HTTPBearer(auto_error=False)
 
 
 def get_settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
-def get_graph_client(request: Request) -> Neo4jGraphClient:
-    return request.app.state.neo4j_client
+def get_repository(request: Request) -> SQLiteRepository:
+    return request.app.state.repository
 
 
-def get_repository(
-    client: Neo4jGraphClient = Depends(get_graph_client),
+def get_memos_client(request: Request) -> MemOSClient:
+    return request.app.state.memos_client
+
+
+def get_model_policy(request: Request) -> ModelRoutingPolicy:
+    return request.app.state.model_policy
+
+
+def get_llm_router(request: Request) -> LocalFirstLLMRouter:
+    return request.app.state.llm_router
+
+
+def require_admin(
     settings: Settings = Depends(get_settings),
-) -> Neo4jGraphRepository:
-    if not client.is_ready:
-        detail = client.last_error or "Neo4j is not configured or available."
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
-
-    return Neo4jGraphRepository(driver=client.driver, database=settings.neo4j_database)
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> None:
+    _require_token(settings, credentials, {settings.admin_token})
 
 
-def get_project_service(
-    repository: Neo4jGraphRepository = Depends(get_repository),
-) -> ProjectService:
-    return ProjectService(repository)
+def require_alexa(
+    settings: Settings = Depends(get_settings),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> None:
+    _require_token(settings, credentials, {settings.alexa_token, settings.admin_token})
 
 
-def get_task_service(repository: Neo4jGraphRepository = Depends(get_repository)) -> TaskService:
-    return TaskService(repository)
-
-
-def get_reminder_service(
-    repository: Neo4jGraphRepository = Depends(get_repository),
-) -> ReminderService:
-    return ReminderService(repository)
+def require_hermes(
+    settings: Settings = Depends(get_settings),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> None:
+    _require_token(settings, credentials, {settings.hermes_token, settings.admin_token})
 
 
 def get_memory_service(
-    repository: Neo4jGraphRepository = Depends(get_repository),
+    repository: SQLiteRepository = Depends(get_repository),
+    memos_client: MemOSClient = Depends(get_memos_client),
 ) -> MemoryService:
-    return MemoryService(repository)
+    return MemoryService(repository, memos_client)
+
+
+def get_project_service(
+    repository: SQLiteRepository = Depends(get_repository),
+    memory_service: MemoryService = Depends(get_memory_service),
+) -> ProjectService:
+    return ProjectService(repository, memory_service)
+
+
+def get_task_service(
+    repository: SQLiteRepository = Depends(get_repository),
+    memory_service: MemoryService = Depends(get_memory_service),
+) -> TaskService:
+    return TaskService(repository, memory_service)
+
+
+def get_reminder_service(
+    repository: SQLiteRepository = Depends(get_repository),
+    memory_service: MemoryService = Depends(get_memory_service),
+) -> ReminderService:
+    return ReminderService(repository, memory_service)
 
 
 def get_calendar_service(settings: Settings = Depends(get_settings)) -> CalendarService:
     return CalendarService(GoogleCalendarProvider(settings))
 
 
-def get_parser_service(settings: Settings = Depends(get_settings)) -> AssistantParserService:
-    return AssistantParserService(default_timezone=settings.default_timezone)
-
-
-def get_assistant_service(
+def get_notion_paper_service(
     settings: Settings = Depends(get_settings),
-    calendar_service: CalendarService = Depends(get_calendar_service),
-    reminder_service: ReminderService = Depends(get_reminder_service),
-    task_service: TaskService = Depends(get_task_service),
-    project_service: ProjectService = Depends(get_project_service),
+    repository: SQLiteRepository = Depends(get_repository),
     memory_service: MemoryService = Depends(get_memory_service),
-) -> AssistantService:
-    context_service = AssistantContextService(
-        calendar_service=calendar_service,
-        reminder_service=reminder_service,
-        task_service=task_service,
-        project_service=project_service,
+) -> NotionPaperService:
+    return NotionPaperService(
+        settings=settings,
+        repository=repository,
         memory_service=memory_service,
-        default_timezone=settings.default_timezone,
-        max_context_items=settings.llm_max_context_items,
-    )
-    return AssistantService(
-        context_service=context_service,
-        llm_provider=build_llm_provider(settings),
-        default_timezone=settings.default_timezone,
-        llm_max_output_tokens=settings.llm_max_output_tokens,
-        llm_note_char_limit=settings.llm_note_char_limit,
     )
 
 
-def get_briefing_service(
-    assistant_service: AssistantService = Depends(get_assistant_service),
-) -> AssistantService:
-    return assistant_service
+def get_voice_service(
+    memory_service: MemoryService = Depends(get_memory_service),
+    llm_router: LocalFirstLLMRouter = Depends(get_llm_router),
+) -> VoiceBridgeService:
+    return VoiceBridgeService(memory_service=memory_service, llm_router=llm_router)
+
+
+def get_export_service(
+    settings: Settings = Depends(get_settings),
+    repository: SQLiteRepository = Depends(get_repository),
+) -> ExportService:
+    return ExportService(settings=settings, repository=repository)
+
+
+def _require_token(
+    settings: Settings,
+    credentials: HTTPAuthorizationCredentials | None,
+    allowed_tokens: set[str | None],
+) -> None:
+    if not settings.auth_required:
+        return
+    configured = {token for token in allowed_tokens if token}
+    if not configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication is enabled but no matching token is configured.",
+        )
+    if credentials is None or credentials.credentials not in configured:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized.")

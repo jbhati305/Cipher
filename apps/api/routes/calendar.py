@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 
-from apps.api.dependencies import get_calendar_service
+from apps.api.dependencies import get_calendar_service, require_hermes
 from core.models.entities import EventCreate, EventRead, EventUpdate, FreeSlotRead
 from services.calendar.service import CalendarService
 
@@ -13,6 +13,7 @@ router = APIRouter(prefix="/calendar", tags=["calendar"])
 def create_event(
     payload: EventCreate,
     service: CalendarService = Depends(get_calendar_service),
+    _: None = Depends(require_hermes),
 ) -> EventRead:
     return service.create_event(payload)
 
@@ -22,6 +23,7 @@ def list_events(
     start: datetime | None = Query(default=None),
     end: datetime | None = Query(default=None),
     service: CalendarService = Depends(get_calendar_service),
+    _: None = Depends(require_hermes),
 ) -> list[EventRead]:
     return service.list_events(start=start, end=end)
 
@@ -31,6 +33,7 @@ def update_event(
     event_id: str,
     payload: EventUpdate,
     service: CalendarService = Depends(get_calendar_service),
+    _: None = Depends(require_hermes),
 ) -> EventRead:
     return service.update_event(event_id, payload)
 
@@ -41,5 +44,6 @@ def get_free_slots(
     end: datetime,
     duration_minutes: int = Query(default=60, ge=1, le=1440),
     service: CalendarService = Depends(get_calendar_service),
+    _: None = Depends(require_hermes),
 ) -> list[FreeSlotRead]:
     return service.get_free_slots(start=start, end=end, duration_minutes=duration_minutes)
